@@ -1,0 +1,283 @@
+:root {
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  color: #f6f7fb;
+  background:
+    radial-gradient(circle at top left, rgba(48, 120, 104, 0.32), transparent 28%),
+    radial-gradient(circle at top right, rgba(240, 131, 70, 0.25), transparent 24%),
+    linear-gradient(135deg, #0b1419 0%, #10232d 45%, #172c2b 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: transparent;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(10, 20, 28, 0.78);
+  color: #f5f8fb;
+  border-radius: 8px;
+  padding: 0.85rem 0.95rem;
+}
+
+textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.primary-button,
+.secondary-button {
+  border: none;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+}
+
+.primary-button {
+  background: #f08346;
+  color: #13181d;
+  font-weight: 700;
+}
+
+.secondary-button {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f8fb;
+}
+
+.compact-button {
+  padding: 0.55rem 0.8rem;
+  font-size: 0.9rem;
+  justify-self: start;
+  align-self: end;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  padding: 2rem;
+  background: rgba(7, 12, 18, 0.8);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.content {
+  padding: 2rem;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  color: #8fc6bb;
+  margin: 0 0 0.5rem;
+}
+
+.muted {
+  color: #b7c3cb;
+}
+
+.nav {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  padding: 0.9rem 1rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.nav-link.active {
+  background: rgba(74, 168, 145, 0.25);
+  border: 1px solid rgba(143, 198, 187, 0.35);
+}
+
+.profile-card,
+.panel,
+.auth-form {
+  background: rgba(12, 22, 31, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 1.2rem;
+}
+
+.profile-card {
+  margin-top: auto;
+}
+
+.page-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.page-grid.single {
+  grid-template-columns: 1fr;
+}
+
+.panel-header {
+  margin-bottom: 1rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.stat {
+  padding: 1rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.stat strong {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 1.75rem;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+}
+
+.stat-value-wrap {
+  font-size: 1.35rem;
+}
+
+.stack {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.inline-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.inline-grid.compact {
+  grid-template-columns: minmax(120px, 180px);
+}
+
+.table-like {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.table-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.95rem 1rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.field-label {
+  font-size: 0.9rem;
+  color: #d9e2e8;
+  font-weight: 600;
+}
+
+.field-label.required::after {
+  content: " *";
+  color: #ff8a8a;
+}
+
+.copy-field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}
+
+.auth-form {
+  width: min(460px, 100%);
+  display: grid;
+  gap: 1rem;
+}
+
+.timeline {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.timeline-item {
+  padding: 0.9rem 1rem;
+  border-left: 3px solid #8fc6bb;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 0 8px 8px 0;
+}
+
+.timeline-item span,
+.error-text {
+  color: #ffb08a;
+}
+
+.success-text {
+  color: #8fe0b7;
+}
+
+.summary-row {
+  align-items: flex-start;
+}
+
+.summary-meta {
+  min-width: 220px;
+  display: grid;
+  gap: 0.2rem;
+}
+
+@media (max-width: 960px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .page-grid,
+  .stats-grid,
+  .inline-grid {
+    grid-template-columns: 1fr;
+  }
+}
