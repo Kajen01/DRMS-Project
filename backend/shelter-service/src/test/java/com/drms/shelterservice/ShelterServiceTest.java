@@ -2,6 +2,7 @@ package com.drms.shelterservice;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 import com.drms.shelterservice.client.UserServiceClient;
 import com.drms.shelterservice.dto.ShelterRequest;
@@ -32,8 +33,7 @@ class ShelterServiceTest {
     private ShelterService shelterService;
 
     @Test
-    void createRejectsOccupancyAboveCapacity() {
-        when(userServiceClient.existsByIdAndRole(2L, "SHELTER_MANAGER")).thenReturn(true);
+    void createSavesShelterSuccessfully() {
         ShelterRequest request = new ShelterRequest(
                 "Shelter A",
                 "Colombo",
@@ -42,13 +42,12 @@ class ShelterServiceTest {
                 "Manager",
                 "0771234567",
                 2L,
-                null,
-                null,
-                100,
-                120,
-                ShelterStatus.ACTIVE
+                ShelterStatus.INACTIVE
         );
 
-        assertThrows(ConflictException.class, () -> shelterService.create(request));
+        com.drms.shelterservice.entity.Shelter shelter = new com.drms.shelterservice.entity.Shelter();
+        when(shelterRepository.save(any(com.drms.shelterservice.entity.Shelter.class))).thenReturn(shelter);
+
+        shelterService.create(request);
     }
 }

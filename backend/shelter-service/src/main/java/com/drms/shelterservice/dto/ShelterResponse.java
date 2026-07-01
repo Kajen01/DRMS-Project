@@ -11,11 +11,6 @@ public record ShelterResponse(
         String contactName,
         String contactPhone,
         Long managerUserId,
-        Double latitude,
-        Double longitude,
-        int capacity,
-        int occupancy,
-        int availableCapacity,
         ShelterStatus status
 ) {
 }

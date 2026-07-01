@@ -26,6 +26,14 @@ import com.drms.sharingservice.repository.DonationTraceRepository;
 import com.drms.sharingservice.repository.ShortageRequestRepository;
 import com.drms.sharingservice.repository.TransferRepository;
 import com.drms.sharingservice.repository.TransparencyTimelineEventRepository;
+import com.drms.sharingservice.dto.AdminTransferRequest;
+import com.drms.sharingservice.dto.ExcessNotificationRequest;
+import com.drms.sharingservice.dto.BulkExcessNotificationRequest;
+import com.drms.sharingservice.dto.ExcessRequestRequest;
+import com.drms.sharingservice.entity.ExcessNotification;
+import com.drms.sharingservice.entity.ExcessRequest;
+import com.drms.sharingservice.repository.ExcessNotificationRepository;
+import com.drms.sharingservice.repository.ExcessRequestRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +47,8 @@ public class SharingTransparencyService {
     private final TransferRepository transferRepository;
     private final DonationTraceRepository donationTraceRepository;
     private final TransparencyTimelineEventRepository eventRepository;
+    private final ExcessNotificationRepository excessNotificationRepository;
+    private final ExcessRequestRepository excessRequestRepository;
     private final SharingMapper sharingMapper;
     private final ShelterServiceClient shelterServiceClient;
     private final ResourceServiceClient resourceServiceClient;
@@ -49,6 +59,8 @@ public class SharingTransparencyService {
             TransferRepository transferRepository,
             DonationTraceRepository donationTraceRepository,
             TransparencyTimelineEventRepository eventRepository,
+            ExcessNotificationRepository excessNotificationRepository,
+            ExcessRequestRepository excessRequestRepository,
             SharingMapper sharingMapper,
             ShelterServiceClient shelterServiceClient,
             ResourceServiceClient resourceServiceClient,
@@ -58,6 +70,8 @@ public class SharingTransparencyService {
         this.transferRepository = transferRepository;
         this.donationTraceRepository = donationTraceRepository;
         this.eventRepository = eventRepository;
+        this.excessNotificationRepository = excessNotificationRepository;
+        this.excessRequestRepository = excessRequestRepository;
         this.sharingMapper = sharingMapper;
         this.shelterServiceClient = shelterServiceClient;
         this.resourceServiceClient = resourceServiceClient;
@@ -280,5 +294,203 @@ public class SharingTransparencyService {
                 .eventType(type)
                 .details(details)
                 .build());
+    }
+
+    @Transactional
+    public TransferResponse createAdminTransfer(AdminTransferRequest request) {
+        validateShelterAvailability(request.targetShelterId());
+
+        ExternalStockReservationResponse reservation = resourceServiceClient.reserve(
+                new ExternalReservationRequest(
+                        0L,
+                        request.targetShelterId(),
+                        request.resourceType(),
+                        request.resourceName(),
+                        request.unit(),
+                        request.quantity(),
+                        "ADMIN-MANUAL-" + System.currentTimeMillis(),
+                        request.batchId()
+                )
+        );
+
+        if (request.shortageRequestId() != null) {
+            ShortageRequest shortage = getShortageEntity(request.shortageRequestId());
+            shortage.setStatus(ShortageRequestStatus.MATCHED);
+            shortageRepository.save(shortage);
+        }
+
+        Transfer transfer = transferRepository.save(Transfer.builder()
+                .shortageRequestId(request.shortageRequestId())
+                .sourceShelterId(0L)
+                .targetShelterId(request.targetShelterId())
+                .reservationId(reservation.reservationId())
+                .sourceBatchId(request.batchId())
+                .donationRef(request.donationRef())
+                .resourceType(request.resourceType())
+                .resourceName(request.resourceName())
+                .unit(request.unit())
+                .quantity(request.quantity())
+                .status(TransferStatus.DISPATCHED)
+                .build());
+
+        recordTimeline("TRANSFER_DISPATCHED", "Transfer dispatched from Admin to shelter " + request.targetShelterId(), request.donationRef(), transfer.getId());
+        return sharingMapper.toTransferResponse(transfer);
+    }
+
+    @Transactional
+    public ExcessNotification createExcess(ExcessNotificationRequest request) {
+        validateShelterAvailability(request.shelterId());
+        ExcessNotification excess = ExcessNotification.builder()
+                .shelterId(request.shelterId())
+                .batchId(request.batchId())
+                .sourceDonationRef(request.sourceDonationRef())
+                .resourceType(request.resourceType())
+                .resourceName(request.resourceName())
+                .unit(request.unit())
+                .quantity(request.quantity())
+                .status("OPEN")
+                .build();
+        return excessNotificationRepository.save(excess);
+    }
+
+    @Transactional
+    public List<ExcessNotification> createBulkExcess(BulkExcessNotificationRequest request) {
+        validateShelterAvailability(request.shelterId());
+        return request.items().stream()
+                .map(item -> ExcessNotification.builder()
+                        .shelterId(request.shelterId())
+                        .batchId(item.batchId())
+                        .sourceDonationRef(item.sourceDonationRef())
+                        .resourceType(item.resourceType())
+                        .resourceName(item.resourceName())
+                        .unit(item.unit())
+                        .quantity(item.quantity())
+                        .status("OPEN")
+                        .build())
+                .map(excessNotificationRepository::save)
+                .toList();
+    }
+
+    public List<ExcessNotification> listExcess(Long shelterId) {
+        if (shelterId != null) {
+            return excessNotificationRepository.findByShelterIdOrderByCreatedAtDesc(shelterId);
+        }
+        return excessNotificationRepository.findByStatusOrderByCreatedAtDesc("OPEN");
+    }
+
+    @Transactional
+    public ExcessRequest createExcessRequest(Long notificationId, ExcessRequestRequest request) {
+        validateShelterAvailability(request.requestingShelterId());
+        ExcessNotification excess = excessNotificationRepository.findById(notificationId)
+                .orElseThrow(() -> new NotFoundException("Excess notification not found"));
+        if (!"OPEN".equals(excess.getStatus())) {
+            throw new ConflictException("Excess notification is no longer open");
+        }
+        if (request.quantity() > excess.getQuantity()) {
+            throw new ConflictException("Requested quantity exceeds available excess quantity");
+        }
+        ExcessRequest req = ExcessRequest.builder()
+                .excessNotificationId(notificationId)
+                .requestingShelterId(request.requestingShelterId())
+                .quantity(request.quantity())
+                .status("PENDING")
+                .build();
+        return excessRequestRepository.save(req);
+    }
+
+    public List<ExcessRequest> listRequestsForNotification(Long notificationId) {
+        return excessRequestRepository.findByExcessNotificationId(notificationId);
+    }
+
+    @Transactional
+    public TransferResponse approveExcessRequest(Long requestId) {
+        ExcessRequest req = excessRequestRepository.findById(requestId)
+                .orElseThrow(() -> new NotFoundException("Excess request not found"));
+        if (!"PENDING".equals(req.getStatus())) {
+            throw new ConflictException("Request is not pending approval");
+        }
+
+        ExcessNotification excess = excessNotificationRepository.findById(req.getExcessNotificationId())
+                .orElseThrow(() -> new NotFoundException("Associated excess notification not found"));
+        if (!"OPEN".equals(excess.getStatus())) {
+            throw new ConflictException("Notification is no longer open");
+        }
+        if (excess.getQuantity() < req.getQuantity()) {
+            throw new ConflictException("No longer enough excess quantity available to satisfy request");
+        }
+
+        Long targetBatchId = excess.getBatchId();
+        String targetDonationRef = excess.getSourceDonationRef();
+        if (targetBatchId == null || targetDonationRef == null) {
+            List<ExternalExcessStockView> batches = resourceServiceClient.getExcess(
+                    excess.getResourceType(),
+                    excess.getResourceName(),
+                    req.getQuantity()
+            );
+            ExternalExcessStockView match = batches.stream()
+                    .filter(b -> b.shelterId().equals(excess.getShelterId()))
+                    .findFirst()
+                    .orElseThrow(() -> new ConflictException("No matching inventory batch found at source shelter"));
+            targetBatchId = match.batchId();
+            targetDonationRef = match.sourceDonationRef();
+        }
+
+        ExternalStockReservationResponse reservation = resourceServiceClient.reserve(
+                new ExternalReservationRequest(
+                        excess.getShelterId(),
+                        req.getRequestingShelterId(),
+                        excess.getResourceType(),
+                        excess.getResourceName(),
+                        excess.getUnit(),
+                        req.getQuantity(),
+                        "EXCESS-REQ-" + req.getId(),
+                        targetBatchId
+                )
+        );
+
+        excess.setQuantity(excess.getQuantity() - req.getQuantity());
+        if (excess.getQuantity() <= 0) {
+            excess.setStatus("RESOLVED");
+        }
+        excessNotificationRepository.save(excess);
+
+        req.setStatus("APPROVED");
+        excessRequestRepository.save(req);
+
+        List<ExcessRequest> otherRequests = excessRequestRepository.findByExcessNotificationId(excess.getId());
+        for (ExcessRequest other : otherRequests) {
+            if ("PENDING".equals(other.getStatus()) && other.getQuantity() > excess.getQuantity()) {
+                other.setStatus("REJECTED");
+                excessRequestRepository.save(other);
+            }
+        }
+
+        Transfer transfer = transferRepository.save(Transfer.builder()
+                .shortageRequestId(null)
+                .sourceShelterId(excess.getShelterId())
+                .targetShelterId(req.getRequestingShelterId())
+                .reservationId(reservation.reservationId())
+                .sourceBatchId(targetBatchId)
+                .donationRef(targetDonationRef)
+                .resourceType(excess.getResourceType())
+                .resourceName(excess.getResourceName())
+                .unit(excess.getUnit())
+                .quantity(req.getQuantity())
+                .status(TransferStatus.DISPATCHED)
+                .build());
+
+        recordTimeline("TRANSFER_DISPATCHED", "Transfer dispatched from shelter " + excess.getShelterId() + " to shelter " + req.getRequestingShelterId(), targetDonationRef, transfer.getId());
+        return sharingMapper.toTransferResponse(transfer);
+    }
+
+    @Transactional
+    public void rejectExcessRequest(Long requestId) {
+        ExcessRequest req = excessRequestRepository.findById(requestId)
+                .orElseThrow(() -> new NotFoundException("Excess request not found"));
+        if (!"PENDING".equals(req.getStatus())) {
+            throw new ConflictException("Request is not pending approval");
+        }
+        req.setStatus("REJECTED");
+        excessRequestRepository.save(req);
     }
 }

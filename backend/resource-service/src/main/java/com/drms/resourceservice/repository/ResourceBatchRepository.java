@@ -13,4 +13,6 @@ public interface ResourceBatchRepository extends JpaRepository<ResourceBatch, Lo
     List<ResourceBatch> findByResourceNameIgnoreCaseAndQuantityAvailableGreaterThan(String resourceName, int minimumAvailable);
 
     List<ResourceBatch> findByShelterIdAndResourceNameIgnoreCase(Long shelterId, String resourceName);
+
+    List<ResourceBatch> findByShelterIdIsNullOrderByReceivedAtDesc();
 }

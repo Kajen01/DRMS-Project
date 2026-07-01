@@ -1,7 +1,6 @@
 package com.drms.shelterservice.dto;
 
 import com.drms.shelterservice.entity.ShelterStatus;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -13,10 +12,6 @@ public record ShelterRequest(
         @NotBlank String contactName,
         @NotBlank String contactPhone,
         @NotNull Long managerUserId,
-        Double latitude,
-        Double longitude,
-        @Min(1) int capacity,
-        @Min(0) int occupancy,
         @NotNull ShelterStatus status
 ) {
 }

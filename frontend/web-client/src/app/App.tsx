@@ -6,12 +6,10 @@ import AuthGuard from "../components/AuthGuard";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import OverviewPage from "../pages/OverviewPage";
-import SheltersPage from "../pages/SheltersPage";
+import LogDonationPage from "../pages/LogDonationPage";
 import InventoryPage from "../pages/InventoryPage";
 import SharingPage from "../pages/SharingPage";
-import TransparencyPage from "../pages/TransparencyPage";
 import UsersPage from "../pages/UsersPage";
-import SystemHealthPage from "../pages/SystemHealthPage";
 import RoleGuard from "../components/RoleGuard";
 
 export default function App() {
@@ -31,23 +29,21 @@ export default function App() {
           }
         >
           <Route index element={<OverviewPage />} />
-          <Route path="shelters" element={<SheltersPage />} />
           <Route path="inventory" element={<InventoryPage />} />
           <Route path="sharing" element={<SharingPage />} />
-          <Route path="transparency" element={<TransparencyPage />} />
+          <Route
+            path="log-donation"
+            element={
+              <RoleGuard roles={["ADMIN"]}>
+                <LogDonationPage />
+              </RoleGuard>
+            }
+          />
           <Route
             path="users"
             element={
               <RoleGuard roles={["ADMIN"]}>
                 <UsersPage />
-              </RoleGuard>
-            }
-          />
-          <Route
-            path="system-health"
-            element={
-              <RoleGuard roles={["ADMIN"]}>
-                <SystemHealthPage />
               </RoleGuard>
             }
           />

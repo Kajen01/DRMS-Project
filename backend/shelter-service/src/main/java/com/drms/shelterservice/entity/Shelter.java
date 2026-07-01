@@ -32,10 +32,6 @@ public class Shelter {
     private String contactName;
     private String contactPhone;
     private Long managerUserId;
-    private Double latitude;
-    private Double longitude;
-    private int capacity;
-    private int occupancy;
 
     @Enumerated(EnumType.STRING)
     private ShelterStatus status;

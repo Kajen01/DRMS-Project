@@ -15,7 +15,13 @@ export default function RegisterPage() {
     email: "",
     username: "",
     password: "",
-    role: "DONOR" as Role
+    role: "DONOR" as Role,
+    shelterName: "",
+    shelterDistrict: "",
+    shelterAddressLine1: "",
+    shelterAddressLine2: "",
+    shelterContactName: "",
+    shelterContactPhone: ""
   });
 
   async function onSubmit(event: FormEvent) {
@@ -23,7 +29,23 @@ export default function RegisterPage() {
     setError("");
     setSuccess("");
     try {
-      const { data } = await api.post<RegistrationResponse>("/api/auth/register", form);
+      // Prepare payload: only send shelter fields if role is SHELTER_MANAGER
+      const payload = {
+        fullName: form.fullName,
+        email: form.email,
+        username: form.username,
+        password: form.password,
+        role: form.role,
+        ...(form.role === "SHELTER_MANAGER" ? {
+          shelterName: form.shelterName,
+          shelterDistrict: form.shelterDistrict,
+          shelterAddressLine1: form.shelterAddressLine1,
+          shelterAddressLine2: form.shelterAddressLine2 || undefined,
+          shelterContactName: form.shelterContactName,
+          shelterContactPhone: form.shelterContactPhone
+        } : {})
+      };
+      const { data } = await api.post<RegistrationResponse>("/api/auth/register", payload);
       setSuccess(data.message);
       if (data.approved && data.token) {
         setAuth({
@@ -73,8 +95,39 @@ export default function RegisterPage() {
             <option value="ADMIN">Admin</option>
           </select>
         </label>
+
+        {form.role === "SHELTER_MANAGER" ? (
+          <div className="shelter-subform">
+            <h3 style={{ marginTop: "1rem", color: "#2563EB" }}>Shelter Details</h3>
+            <label>
+              <span className="field-label required">Shelter Name</span>
+              <input value={form.shelterName} onChange={(event) => setForm({ ...form, shelterName: event.target.value })} placeholder="Colombo Central Shelter" required />
+            </label>
+            <label>
+              <span className="field-label required">District</span>
+              <input value={form.shelterDistrict} onChange={(event) => setForm({ ...form, shelterDistrict: event.target.value })} placeholder="Colombo" required />
+            </label>
+            <label>
+              <span className="field-label required">Address Line 1</span>
+              <input value={form.shelterAddressLine1} onChange={(event) => setForm({ ...form, shelterAddressLine1: event.target.value })} placeholder="123 Galle Road" required />
+            </label>
+            <label>
+              <span className="field-label">Address Line 2</span>
+              <input value={form.shelterAddressLine2} onChange={(event) => setForm({ ...form, shelterAddressLine2: event.target.value })} placeholder="Suite 4" />
+            </label>
+            <label>
+              <span className="field-label required">Contact Name</span>
+              <input value={form.shelterContactName} onChange={(event) => setForm({ ...form, shelterContactName: event.target.value })} placeholder="Saman Perera" required />
+            </label>
+            <label>
+              <span className="field-label required">Contact Phone</span>
+              <input value={form.shelterContactPhone} onChange={(event) => setForm({ ...form, shelterContactPhone: event.target.value })} placeholder="0771234567" required />
+            </label>
+          </div>
+        ) : null}
+
         <p className="muted">
-          Donor accounts become active immediately. Admin and shelter manager registrations require admin approval before login.
+          All registrations (Admin, Shelter Manager, and Donor) require admin approval before login.
         </p>
         {success ? <p className="success-text">{success}</p> : null}
         {error ? <p className="error-text">{error}</p> : null}

@@ -79,8 +79,7 @@ export default function OverviewPage() {
         <SectionCard title="Manager Highlights">
           <div className="stack">
             <p><strong>Your shelters:</strong> {managedShelters.map((shelter) => shelter.name).join(", ") || "None assigned yet"}</p>
-            <p><strong>Total managed capacity:</strong> {managedShelters.reduce((sum, shelter) => sum + shelter.capacity, 0)}</p>
-            <p><strong>Available capacity:</strong> {managedShelters.reduce((sum, shelter) => sum + shelter.availableCapacity, 0)}</p>
+            <p><strong>Active shelters:</strong> {managedShelters.filter((s) => s.status === "ACTIVE").length}</p>
           </div>
         </SectionCard>
       ) : null}
