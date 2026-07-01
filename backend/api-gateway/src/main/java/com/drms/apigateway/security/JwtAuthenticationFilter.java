@@ -68,6 +68,9 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     }
 
     private List<String> rolesForPath(String path, HttpMethod method) {
+        if (pathMatcher.match("/api/users/me", path)) {
+            return List.of("ADMIN", "SHELTER_MANAGER", "DONOR");
+        }
         if (HttpMethod.GET.equals(method) && pathMatcher.match("/api/shelters/**", path)) {
             return List.of("ADMIN", "SHELTER_MANAGER", "DONOR");
         }

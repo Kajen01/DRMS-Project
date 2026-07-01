@@ -14,17 +14,21 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.drms.userservice.client.ShelterServiceClient;
+
 @Service
 public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final ShelterServiceClient shelterServiceClient;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, ShelterServiceClient shelterServiceClient) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.shelterServiceClient = shelterServiceClient;
     }
 
     @Transactional
@@ -46,6 +50,20 @@ public class AuthService {
                 .status(status)
                 .build();
         User saved = userRepository.save(user);
+
+        if (saved.getRole() == com.drms.userservice.entity.Role.SHELTER_MANAGER) {
+            shelterServiceClient.create(new ShelterServiceClient.ShelterRequest(
+                    request.shelterName() != null && !request.shelterName().isBlank() ? request.shelterName() : saved.getFullName() + "'s Shelter",
+                    request.shelterDistrict() != null && !request.shelterDistrict().isBlank() ? request.shelterDistrict() : "Default District",
+                    request.shelterAddressLine1() != null && !request.shelterAddressLine1().isBlank() ? request.shelterAddressLine1() : "Default Address",
+                    request.shelterAddressLine2(),
+                    request.shelterContactName() != null && !request.shelterContactName().isBlank() ? request.shelterContactName() : saved.getFullName(),
+                    request.shelterContactPhone() != null && !request.shelterContactPhone().isBlank() ? request.shelterContactPhone() : "0000000000",
+                    saved.getId(),
+                    "INACTIVE"
+            ));
+        }
+
         boolean approved = saved.getStatus() == UserStatus.ACTIVE;
         return new RegistrationResponse(
                 saved.getId(),
@@ -88,9 +106,6 @@ public class AuthService {
     }
 
     private boolean requiresApproval(RegisterRequest request) {
-        return request.role() != null && switch (request.role()) {
-            case ADMIN, SHELTER_MANAGER -> true;
-            case DONOR -> false;
-        };
+        return true;
     }
 }

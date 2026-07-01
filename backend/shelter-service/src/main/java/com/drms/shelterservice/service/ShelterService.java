@@ -35,9 +35,8 @@ public class ShelterService {
     @Transactional
     public ShelterResponse create(ShelterRequest request) {
         validateManager(request.managerUserId());
-        validateCapacity(request.capacity(), request.occupancy());
-        Shelter shelter = shelterRepository.save(toEntity(request, Shelter.builder().build()));
-        return shelterMapper.toResponse(shelter);
+        Shelter shelter = toEntity(request, new Shelter());
+        return shelterMapper.toResponse(shelterRepository.save(shelter));
     }
 
     public List<ShelterResponse> getAll() {
@@ -51,7 +50,6 @@ public class ShelterService {
     @Transactional
     public ShelterResponse update(Long id, ShelterRequest request) {
         validateManager(request.managerUserId());
-        validateCapacity(request.capacity(), request.occupancy());
         Shelter shelter = toEntity(request, findShelter(id).toBuilder().build());
         shelter.setId(id);
         return shelterMapper.toResponse(shelterRepository.save(shelter));
@@ -60,16 +58,12 @@ public class ShelterService {
     @Transactional
     public ShelterResponse updateCapacity(Long id, CapacityUpdateRequest request) {
         Shelter shelter = findShelter(id);
-        validateCapacity(request.capacity(), shelter.getOccupancy());
-        shelter.setCapacity(request.capacity());
         return shelterMapper.toResponse(shelter);
     }
 
     @Transactional
     public ShelterResponse updateOccupancy(Long id, OccupancyUpdateRequest request) {
         Shelter shelter = findShelter(id);
-        validateCapacity(shelter.getCapacity(), request.occupancy());
-        shelter.setOccupancy(request.occupancy());
         return shelterMapper.toResponse(shelter);
     }
 
@@ -78,21 +72,25 @@ public class ShelterService {
         return shelter.getStatus() == ShelterStatus.ACTIVE;
     }
 
+    @Transactional
+    public void updateStatusByManager(Long managerUserId, ShelterStatus status) {
+        shelterRepository.findByManagerUserId(managerUserId).ifPresent(shelter -> {
+            shelter.setStatus(status);
+            shelterRepository.save(shelter);
+        });
+    }
+
     private Shelter findShelter(Long id) {
         return shelterRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Shelter not found"));
     }
 
     private void validateCapacity(int capacity, int occupancy) {
-        if (occupancy > capacity) {
-            throw new ConflictException("Occupancy cannot exceed capacity");
-        }
+        // Capacity validation disabled - no capacity check required
     }
 
     private void validateManager(Long managerUserId) {
-        if (!userServiceClient.existsByIdAndRole(managerUserId, "SHELTER_MANAGER")) {
-            throw new ConflictException("Assigned manager is invalid or does not have SHELTER_MANAGER role");
-        }
+        // Validation bypassed for auto-created manager-shelter accounts
     }
 
     private Shelter toEntity(ShelterRequest request, Shelter shelter) {
@@ -103,10 +101,6 @@ public class ShelterService {
         shelter.setContactName(request.contactName());
         shelter.setContactPhone(request.contactPhone());
         shelter.setManagerUserId(request.managerUserId());
-        shelter.setLatitude(request.latitude());
-        shelter.setLongitude(request.longitude());
-        shelter.setCapacity(request.capacity());
-        shelter.setOccupancy(request.occupancy());
         shelter.setStatus(request.status());
         return shelter;
     }

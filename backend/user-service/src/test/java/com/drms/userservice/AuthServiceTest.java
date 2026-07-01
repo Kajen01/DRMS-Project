@@ -17,6 +17,7 @@ import com.drms.userservice.service.AuthService;
 import com.drms.userservice.dto.LoginRequest;
 import com.drms.userservice.exception.UnauthorizedException;
 import com.drms.userservice.util.JwtTokenProvider;
+import com.drms.userservice.client.ShelterServiceClient;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -36,11 +37,14 @@ class AuthServiceTest {
     @Mock
     private JwtTokenProvider jwtTokenProvider;
 
+    @Mock
+    private ShelterServiceClient shelterServiceClient;
+
     @InjectMocks
     private AuthService authService;
 
     @Test
-    void registerCreatesTokenForDonorAccount() {
+    void registerCreatesPendingApprovalDonorAccountWithoutToken() {
         RegisterRequest request = new RegisterRequest("Donor User", "donor@test.com", "donor", "Password123", Role.DONOR);
         when(userRepository.existsByEmail(request.email())).thenReturn(false);
         when(userRepository.existsByUsername(request.username())).thenReturn(false);
@@ -50,14 +54,13 @@ class AuthServiceTest {
             user.setId(1L);
             return user;
         });
-        when(jwtTokenProvider.createToken(any(User.class))).thenReturn("jwt-token");
 
         RegistrationResponse response = authService.register(request);
 
         assertEquals(1L, response.userId());
         assertEquals(Role.DONOR, response.role());
-        assertNotNull(response.token());
-        assertEquals(UserStatus.ACTIVE, response.status());
+        assertNull(response.token());
+        assertEquals(UserStatus.PENDING_APPROVAL, response.status());
         assertEquals("donor", response.username());
     }
 

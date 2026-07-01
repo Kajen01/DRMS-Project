@@ -17,11 +17,6 @@ public class ShelterMapper {
                 shelter.getContactName(),
                 shelter.getContactPhone(),
                 shelter.getManagerUserId(),
-                shelter.getLatitude(),
-                shelter.getLongitude(),
-                shelter.getCapacity(),
-                shelter.getOccupancy(),
-                Math.max(0, shelter.getCapacity() - shelter.getOccupancy()),
                 shelter.getStatus()
         );
     }

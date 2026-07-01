@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.drms.shelterservice.entity.ShelterStatus;
+import org.springframework.web.bind.annotation.RequestParam;
+
 @RestController
 @RequestMapping("/api/shelters")
 public class ShelterController {
@@ -61,5 +64,13 @@ public class ShelterController {
     @GetMapping("/{id}/availability")
     public boolean isAvailable(@PathVariable Long id) {
         return shelterService.isAvailable(id);
+    }
+
+    @PatchMapping("/internal/manager/{managerUserId}/status")
+    public void updateStatusByManager(
+            @PathVariable("managerUserId") Long managerUserId,
+            @RequestParam("status") ShelterStatus status
+    ) {
+        shelterService.updateStatusByManager(managerUserId, status);
     }
 }

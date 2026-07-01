@@ -2,6 +2,7 @@ package com.drms.resourceservice.controller;
 
 import com.drms.resourceservice.dto.BatchIntakeRequest;
 import com.drms.resourceservice.dto.BatchResponse;
+import com.drms.resourceservice.dto.BulkIntakeRequest;
 import com.drms.resourceservice.dto.DonationHistoryResponse;
 import com.drms.resourceservice.dto.ExcessStockView;
 import com.drms.resourceservice.dto.ReleaseReservationRequest;
@@ -43,9 +44,22 @@ public class ResourceController {
         return inventoryService.intake(request, donorEmail);
     }
 
+    @PostMapping("/batches/bulk")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<BatchResponse> intakeBulk(
+            @Valid @RequestBody BulkIntakeRequest request
+    ) {
+        return inventoryService.intakeBulk(request);
+    }
+
     @GetMapping("/shelters/{shelterId}")
     public List<BatchResponse> getByShelter(@PathVariable Long shelterId) {
         return inventoryService.getByShelter(shelterId);
+    }
+
+    @GetMapping("/admin/batches")
+    public List<BatchResponse> getAdminBatches() {
+        return inventoryService.getAdminBatches();
     }
 
     @GetMapping("/donations/me")

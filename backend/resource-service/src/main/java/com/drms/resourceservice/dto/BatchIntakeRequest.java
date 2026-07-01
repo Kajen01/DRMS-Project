@@ -7,12 +7,16 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 
 public record BatchIntakeRequest(
-        @NotNull Long shelterId,
+        Long shelterId,
         @NotNull ResourceCategory resourceType,
         @NotBlank String resourceName,
         @NotBlank String unit,
         @Min(1) int quantityReceived,
         LocalDate expiryDate,
-        String sourceDonationRef
+        String sourceDonationRef,
+        String donorEmail
 ) {
+    public BatchIntakeRequest(Long shelterId, ResourceCategory resourceType, String resourceName, String unit, int quantityReceived, LocalDate expiryDate, String sourceDonationRef) {
+        this(shelterId, resourceType, resourceName, unit, quantityReceived, expiryDate, sourceDonationRef, null);
+    }
 }

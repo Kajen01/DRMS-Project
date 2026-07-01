@@ -8,41 +8,42 @@ services:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
-    environment:
-      discovery.type: single-node
-      xpack.security.enabled: "false"
-      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
+#   elasticsearch:
+#     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
+#     environment:
+#       discovery.type: single-node
+#       xpack.security.enabled: "false"
+#       ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+#     ports:
+#       - "9200:9200"
+# 
+#   logstash:
+#     image: docker.elastic.co/logstash/logstash:8.15.2
+#     volumes:
+#       - ../docker/elk/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+#     depends_on:
+#       - elasticsearch
+#     ports:
+#       - "5044:5044"
+# 
+#   kibana:
+#     image: docker.elastic.co/kibana/kibana:8.15.2
+#     environment:
+#       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+#     depends_on:
+#       - elasticsearch
+#     ports:
+#       - "5601:5601"
+# 
+#   filebeat:
+#     image: docker.elastic.co/beats/filebeat:8.15.2
+#     user: root
+#     volumes:
+#       - ../docker/elk/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+#       - ../../logs:/usr/share/filebeat/logs:ro
+#     depends_on:
+#       - logstash
 
-  logstash:
-    image: docker.elastic.co/logstash/logstash:8.15.2
-    volumes:
-      - ../docker/elk/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
-    depends_on:
-      - elasticsearch
-    ports:
-      - "5044:5044"
-
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.15.2
-    environment:
-      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
-    depends_on:
-      - elasticsearch
-    ports:
-      - "5601:5601"
-
-  filebeat:
-    image: docker.elastic.co/beats/filebeat:8.15.2
-    user: root
-    volumes:
-      - ../docker/elk/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      - ../../logs:/usr/share/filebeat/logs:ro
-    depends_on:
-      - logstash
 
   mysql-user:
     image: mysql:8.0
@@ -104,6 +105,12 @@ services:
       - "8888:8888"
     depends_on:
       - rabbitmq
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 25
+      start_period: 15s
 
   service-registry:
     build:
@@ -117,7 +124,14 @@ services:
     ports:
       - "8761:8761"
     depends_on:
-      - config-server
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 25
+      start_period: 15s
 
   user-service:
     build:
@@ -134,8 +148,10 @@ services:
     ports:
       - "8081:8081"
     depends_on:
-      - service-registry
-      - mysql-user
+      service-registry:
+        condition: service_healthy
+      mysql-user:
+        condition: service_started
 
   shelter-service:
     build:
@@ -152,8 +168,10 @@ services:
     ports:
       - "8082:8082"
     depends_on:
-      - service-registry
-      - mysql-shelter
+      service-registry:
+        condition: service_healthy
+      mysql-shelter:
+        condition: service_started
 
   resource-service:
     build:
@@ -171,8 +189,10 @@ services:
     ports:
       - "8083:8083"
     depends_on:
-      - service-registry
-      - mysql-resource
+      service-registry:
+        condition: service_healthy
+      mysql-resource:
+        condition: service_started
 
   sharing-transparency-service:
     build:
@@ -190,8 +210,10 @@ services:
     ports:
       - "8084:8084"
     depends_on:
-      - service-registry
-      - mysql-sharing
+      service-registry:
+        condition: service_healthy
+      mysql-sharing:
+        condition: service_started
 
   api-gateway:
     build:
@@ -207,10 +229,14 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - user-service
-      - shelter-service
-      - resource-service
-      - sharing-transparency-service
+      user-service:
+        condition: service_started
+      shelter-service:
+        condition: service_started
+      resource-service:
+        condition: service_started
+      sharing-transparency-service:
+        condition: service_started
 
   web-client:
     build:
@@ -219,4 +245,5 @@ services:
     ports:
       - "5173:80"
     depends_on:
-      - api-gateway
+      api-gateway:
+        condition: service_started

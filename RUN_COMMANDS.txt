@@ -246,3 +246,17 @@ http://localhost:8080/swagger-ui.html
 - If Maven is not installed, install Maven and add it to PATH before running backend commands.
 - If Docker is not installed, install Docker Desktop before using compose commands.
 - Backend Docker images now copy prebuilt local jars from `backend/*/target`, so the Maven build step must be run before Docker Compose.
+
+
+
+
+
+
+
+
+
+mvn clean install -DskipTests
+
+docker compose -f infra/compose/docker-compose.yml down -v
+
+docker compose -f infra/compose/docker-compose.yml up --build -d

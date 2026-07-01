@@ -8,25 +8,19 @@ export default function AppLayout() {
   const navItems = auth?.role === "ADMIN"
     ? [
         { to: "/", label: "Dashboard" },
-        { to: "/users", label: "Users" },
-        { to: "/shelters", label: "Shelters" },
-        { to: "/sharing", label: "Shortages" },
-        { to: "/system-health", label: "System Health" },
-        { to: "/transparency", label: "Transparency" }
+        { to: "/users", label: "Users & Shelters" },
+        { to: "/log-donation", label: "Donations" },
+        { to: "/sharing", label: "Shortages" }
       ]
     : auth?.role === "SHELTER_MANAGER"
       ? [
           { to: "/", label: "Dashboard" },
-          { to: "/shelters", label: "Shelter" },
           { to: "/inventory", label: "Inventory" },
-          { to: "/sharing", label: "Transfers" },
-          { to: "/transparency", label: "Transparency" }
+          { to: "/sharing", label: "Transfers" }
         ]
       : [
           { to: "/", label: "Dashboard" },
-          { to: "/inventory", label: "Donate" },
-          { to: "/sharing", label: "Shortages" },
-          { to: "/transparency", label: "Transparency" }
+          { to: "/inventory", label: "My Donations" }
         ];
 
   return (

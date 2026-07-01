@@ -2,6 +2,7 @@ package com.drms.resourceservice.service;
 
 import com.drms.resourceservice.dto.BatchIntakeRequest;
 import com.drms.resourceservice.dto.BatchResponse;
+import com.drms.resourceservice.dto.BulkIntakeRequest;
 import com.drms.resourceservice.dto.DonationHistoryResponse;
 import com.drms.resourceservice.dto.ExcessStockView;
 import com.drms.resourceservice.dto.ReservationRequest;
@@ -50,10 +51,11 @@ public class ResourceInventoryService {
 
     @Transactional
     public BatchResponse intake(BatchIntakeRequest request, String donorEmail) {
+        String finalDonorEmail = request.donorEmail() != null && !request.donorEmail().isBlank() ? request.donorEmail() : donorEmail;
         String donationReference = generateDonationReference();
         ResourceBatch batch = ResourceBatch.builder()
                 .shelterId(request.shelterId())
-                .donorEmail(donorEmail)
+                .donorEmail(finalDonorEmail)
                 .resourceType(request.resourceType())
                 .resourceName(request.resourceName())
                 .unit(request.unit())
@@ -66,11 +68,48 @@ public class ResourceInventoryService {
         ResourceBatch saved = batchRepository.save(batch);
         eventPublisherService.publish("donation.logged", Map.of(
                 "batchId", saved.getId(),
-                "shelterId", saved.getShelterId(),
+                "shelterId", saved.getShelterId() != null ? saved.getShelterId() : 0L,
                 "resourceName", saved.getResourceName(),
+                "resourceType", saved.getResourceType().name(),
+                "unit", saved.getUnit(),
+                "quantity", saved.getQuantityReceived(),
+                "donorEmail", saved.getDonorEmail() != null ? saved.getDonorEmail() : "",
                 "donationRef", saved.getSourceDonationRef()
         ));
         return resourceMapper.toBatchResponse(saved);
+    }
+
+    @Transactional
+    public List<BatchResponse> intakeBulk(BulkIntakeRequest request) {
+        return request.items().stream()
+                .map(item -> {
+                    String donationReference = generateDonationReference();
+                    ResourceBatch batch = ResourceBatch.builder()
+                            .shelterId(request.shelterId() != null && request.shelterId() != 0L ? request.shelterId() : null)
+                            .donorEmail(request.donorEmail())
+                            .resourceType(item.resourceType())
+                            .resourceName(item.resourceName())
+                            .unit(item.unit())
+                            .quantityReceived(item.quantityReceived())
+                            .quantityAvailable(item.quantityReceived())
+                            .expiryDate(item.expiryDate())
+                            .sourceDonationRef(donationReference)
+                            .receivedAt(Instant.now())
+                            .build();
+                    ResourceBatch saved = batchRepository.save(batch);
+                    eventPublisherService.publish("donation.logged", Map.of(
+                            "batchId", saved.getId(),
+                            "shelterId", saved.getShelterId() != null ? saved.getShelterId() : 0L,
+                            "resourceName", saved.getResourceName(),
+                            "resourceType", saved.getResourceType().name(),
+                            "unit", saved.getUnit(),
+                            "quantity", saved.getQuantityReceived(),
+                            "donorEmail", saved.getDonorEmail() != null ? saved.getDonorEmail() : "",
+                            "donationRef", saved.getSourceDonationRef()
+                    ));
+                    return resourceMapper.toBatchResponse(saved);
+                })
+                .toList();
     }
 
     public DonationHistoryResponse getDonationHistory(String donorEmail) {
@@ -116,21 +155,38 @@ public class ResourceInventoryService {
 
     @Transactional
     public StockReservationResponse reserve(ReservationRequest request) {
-        ResourceBatch batch = batchRepository.findAll().stream()
-                .filter(candidate -> candidate.getShelterId().equals(request.sourceShelterId()))
-                .filter(candidate -> candidate.getResourceType() == request.resourceType())
-                .filter(candidate -> candidate.getResourceName().equalsIgnoreCase(request.resourceName()))
-                .filter(candidate -> candidate.getUnit().equalsIgnoreCase(request.unit()))
-                .filter(candidate -> candidate.getQuantityAvailable() >= request.quantity())
-                .filter(candidate -> candidate.getExpiryDate() == null || !candidate.getExpiryDate().isBefore(LocalDate.now()))
-                .sorted(Comparator.comparing(ResourceBatch::getExpiryDate, Comparator.nullsLast(Comparator.naturalOrder())))
-                .findFirst()
-                .orElseThrow(() -> new ConflictException("No eligible batch available to reserve"));
+        ResourceBatch batch;
+        if (request.batchId() != null) {
+            batch = getBatch(request.batchId());
+            if (batch.getQuantityAvailable() < request.quantity()) {
+                throw new ConflictException("Selected batch does not have enough available quantity");
+            }
+            if (batch.getExpiryDate() != null && batch.getExpiryDate().isBefore(LocalDate.now())) {
+                throw new ConflictException("Selected batch has expired");
+            }
+        } else {
+            batch = batchRepository.findAll().stream()
+                    .filter(candidate -> {
+                        if (request.sourceShelterId() == null || request.sourceShelterId() == 0L) {
+                            return candidate.getShelterId() == null;
+                        } else {
+                            return request.sourceShelterId().equals(candidate.getShelterId());
+                        }
+                    })
+                    .filter(candidate -> candidate.getResourceType() == request.resourceType())
+                    .filter(candidate -> candidate.getResourceName().equalsIgnoreCase(request.resourceName()))
+                    .filter(candidate -> candidate.getUnit().equalsIgnoreCase(request.unit()))
+                    .filter(candidate -> candidate.getQuantityAvailable() >= request.quantity())
+                    .filter(candidate -> candidate.getExpiryDate() == null || !candidate.getExpiryDate().isBefore(LocalDate.now()))
+                    .sorted(Comparator.comparing(ResourceBatch::getExpiryDate, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .findFirst()
+                    .orElseThrow(() -> new ConflictException("No eligible batch available to reserve"));
+        }
 
         batch.setQuantityAvailable(batch.getQuantityAvailable() - request.quantity());
         StockReservation reservation = reservationRepository.save(StockReservation.builder()
                 .batchId(batch.getId())
-                .sourceShelterId(request.sourceShelterId())
+                .sourceShelterId(request.sourceShelterId() != null ? request.sourceShelterId() : 0L)
                 .targetShelterId(request.targetShelterId())
                 .resourceType(request.resourceType())
                 .resourceName(request.resourceName())
@@ -181,6 +237,7 @@ public class ResourceInventoryService {
                 .quantityAvailable(reservation.getReservedQuantity())
                 .expiryDate(sourceBatch.getExpiryDate())
                 .sourceDonationRef(sourceBatch.getSourceDonationRef())
+                .donorEmail(sourceBatch.getDonorEmail())
                 .receivedAt(Instant.now())
                 .build());
 
@@ -192,6 +249,12 @@ public class ResourceInventoryService {
                 "donationRef", sourceBatch.getSourceDonationRef()
         ));
         return resourceMapper.toReservationResponse(reservation);
+    }
+
+    public List<BatchResponse> getAdminBatches() {
+        return batchRepository.findByShelterIdIsNullOrderByReceivedAtDesc().stream()
+                .map(resourceMapper::toBatchResponse)
+                .toList();
     }
 
     private StockReservation getReservation(Long id) {

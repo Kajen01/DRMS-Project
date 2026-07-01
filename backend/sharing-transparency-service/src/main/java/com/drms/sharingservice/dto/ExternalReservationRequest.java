@@ -7,6 +7,10 @@ public record ExternalReservationRequest(
         String resourceName,
         String unit,
         int quantity,
-        String referenceNumber
+        String referenceNumber,
+        Long batchId
 ) {
+    public ExternalReservationRequest(Long sourceShelterId, Long targetShelterId, String resourceType, String resourceName, String unit, int quantity, String referenceNumber) {
+        this(sourceShelterId, targetShelterId, resourceType, resourceName, unit, quantity, referenceNumber, null);
+    }
 }
