@@ -1,5 +1,29 @@
 USE sharing_service_db;
 
+CREATE TABLE IF NOT EXISTS excess_notifications (
+	id bigint NOT NULL AUTO_INCREMENT,
+	shelter_id bigint DEFAULT NULL,
+	batch_id bigint DEFAULT NULL,
+	source_donation_ref varchar(255) DEFAULT NULL,
+	resource_type varchar(255) DEFAULT NULL,
+	resource_name varchar(255) DEFAULT NULL,
+	unit varchar(255) DEFAULT NULL,
+	quantity int NOT NULL,
+	status enum('OPEN','RESOLVED') DEFAULT NULL,
+	created_at datetime(6) DEFAULT NULL,
+	PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS excess_requests (
+	id bigint NOT NULL AUTO_INCREMENT,
+	excess_notification_id bigint DEFAULT NULL,
+	requesting_shelter_id bigint DEFAULT NULL,
+	quantity int NOT NULL,
+	status enum('PENDING','APPROVED','REJECTED') DEFAULT NULL,
+	created_at datetime(6) DEFAULT NULL,
+	PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 SET FOREIGN_KEY_CHECKS = 0;
 TRUNCATE TABLE shortage_requests;
 TRUNCATE TABLE excess_notifications;
